@@ -18,6 +18,22 @@
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
     /* Fill this in */
+    struct sr_arpreq *current = sr->cache.requests;
+    if(current!=NULL){
+        if(handle_arpreq(sr, current, &sr->cache)==2){
+            sr->cache.requests = NULL;
+            current = NULL;
+        }
+    }
+    struct sr_arpreq *next = NULL;
+    if(current!=NULL && current->next!=NULL){
+        next = current->next;
+    }
+    while(next!=NULL){
+        current = next;
+        next = current->next;
+        handle_arpreq(sr,current, &sr->cache);
+    }
 }
 
 /* You should not need to touch the rest of this code. */

@@ -222,6 +222,38 @@ void *sr_rip_timeout(void *sr_ptr) {
         sleep(5);
         pthread_mutex_lock(&(sr->rt_lock));
         /* Fill your code here */
+        send_rip_request(sr);
+        struct sr_rt *current = NULL;
+        if(sr->routing_table != NULL){
+            current = sr->routing_table;
+        }
+        struct sr_rt *next = NULL;
+        if(sr->routing_table != NULL){
+            next = current->next;
+        }
+        if(current->updated_time > 20){
+            if(next != NULL){
+                sr->routing_table = next;
+            }
+            else{
+                sr->routing_table = NULL;
+            }
+        }
+        while(current->next != NULL){
+            if(next->updated_time > 20){
+                if(next->next != NULL){
+                    current->next = next->next;
+                }
+                else{
+                    current->next = NULL;
+                    break;
+                }
+            }
+            current = current->next;
+            if(current->next != NULL){
+                next = current->next;
+            }
+        }
         
         pthread_mutex_unlock(&(sr->rt_lock));
     }
