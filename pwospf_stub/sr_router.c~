@@ -259,7 +259,7 @@ void send_arpreq(struct sr_instance* sr, struct sr_arpreq *request){
     free(buf);
 }
 
-void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, char* interface) {
+void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, const char* interface) {
     if (len < ethernet_hdr_size + ip_hdr_size) {
         return;
     }
@@ -309,7 +309,7 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, ch
     }
 }
 
-void sr_handle_rip(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr, sr_rip_pkt_t* my_rip_pkt, char* interface) {
+void sr_handle_rip(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr, sr_rip_pkt_t* my_rip_pkt, const char* interface) {
 	printf("Handling RIP packet\n");
 	uint8_t my_command = my_rip_pkt->command;
 	if (my_command == 1) {

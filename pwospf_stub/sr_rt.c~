@@ -23,6 +23,7 @@
 #include "sr_if.h"
 #include "sr_utils.h"
 #include "sr_router.h"
+#include "sr_protocol.h"
 
 struct sr_rt* sr_longest_prefix_match(struct sr_instance* sr, uint32_t my_ip) {
 	struct sr_rt* my_iter = sr->routing_table;
@@ -287,7 +288,7 @@ void send_rip_update(struct sr_instance *sr){
 	struct sr_rt *current = sr->routing_table;
 	while (current != NULL) {
 		/* Populate packet fields */
-		unsigned int len = ethernet_hdr_size + ip_hdr_size + icmp_t11_hdr_size;
+		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
    		uint8_t* buf = (uint8_t*)malloc(len);
    
 		/* Ethernet Header */
@@ -297,33 +298,33 @@ void send_rip_update(struct sr_instance *sr){
     		memset(eth_hdr->ether_dhost, 0x00, 6);
 
 		/* IP Header */
-    		sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t*)(buf + ethernet_hdr_size);
+    		sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t));
     		new_ip_hdr->ip_hl = 5;
     		new_ip_hdr->ip_v = 4;
-    		new_ip_hdr->ip_tos = my_ip_hdr->ip_tos;
-    		new_ip_hdr->ip_len = htons(len - ethernet_hdr_size);
-    		new_ip_hdr->ip_id = my_ip_hdr->ip_id;
+    		/*new_ip_hdr->ip_tos = my_ip_hdr->ip_tos;*/
+    		new_ip_hdr->ip_len = htons(len - sizeof(sr_ethernet_hdr_t));
+    		/*new_ip_hdr->ip_id = my_ip_hdr->ip_id;*/
     		new_ip_hdr->ip_off = 0;
     		new_ip_hdr->ip_ttl = 64;
     		new_ip_hdr->ip_p = ip_protocol_udp;
     		new_ip_hdr->ip_sum = 0;
-    		new_ip_hdr->ip_dst = my_ip_hdr->ip_src; 
+    		/*new_ip_hdr->ip_dst = my_ip_hdr->ip_src; */
     		struct sr_rt *my_match = sr_longest_prefix_match(sr, new_ip_hdr->ip_dst);
     		struct sr_if* interface = sr_get_interface(sr, my_match->interface);    
     		new_ip_hdr->ip_src = interface->ip;
-    		new_ip_hdr->ip_sum = cksum(buf + ethernet_hdr_size, ip_hdr_size); 
+    		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t)); 
   
     	        /* UDP Header */
-		sr_ip_hdr_t *udp_hdr = (sr_udp_hdr_t*)(buf + ethernet_hdr_size + ip_hdr_size);
+		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 		udp_hdr->port_dst = 520;
 		udp_hdr->port_dst = 520;
-		udp_hdr-> udp_len = htons(len - ethernet_hdr_size - ip_hdr_size);
+		udp_hdr-> udp_len = htons(len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
 
 		/* RIP Packet */
-		sr_ip_hdr_t *rip_pkt = (sr_rip_pkt_t*)(buf + ethernet_hdr_size + ip_hdr_size + udp_hdr_size);
+		sr_rip_pkt_t *rip_pkt = (sr_rip_pkt_t*)(buf + sizeof(sr_ethernet_hdr_t) + ip_hdr_size + udp_hdr_size);
 		rip_pkt->command = 2;
 		rip_pkt->version = 2;
-		struct entry *my_rip_entry = (struct entry*)(rip_packet + 2*sizeof(uint8_t) + sizeof(uint16_t) )
+		struct entry *my_rip_entry = (struct entry*)(rip_pkt + 2*sizeof(uint8_t) + sizeof(uint16_t));
 		
                                
     		/*sr_get_nexthop(sr, buf, len, my_match->gw.s_addr, interface);*/
