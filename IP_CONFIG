@@ -1,0 +1,12 @@
+server1 192.168.2.200
+server2 172.24.3.30
+client    10.0.1.100
+vhost1-eth1 10.0.1.1
+vhost1-eth2 10.0.2.1
+vhost1-eth3 10.0.3.1
+vhost2-eth1 10.0.2.2
+vhost2-eth2 192.168.2.2
+vhost2-eth3 192.168.3.1
+vhost3-eth1 10.0.3.2
+vhost3-eth2 172.24.3.2
+vhost3-eth3 192.168.3.2
