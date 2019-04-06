@@ -383,7 +383,7 @@ void send_rip_update(struct sr_instance *sr){
                 		rip_pkt->entries[rip_index].afi = htons(2);
                 		rip_index++;
             		}
-            		entry = entry->next;
+            		my_rip_entry = my_rip_entry->next;
         	}                               
     		free(buf);
 		current = current->next;
@@ -394,59 +394,22 @@ void send_rip_update(struct sr_instance *sr){
 /* Called after receiving a RIP response packet. You should enable triggered updates here. When the routing table changes, the router will send a RIP response immediately */
 void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_pkt_t* rip_packet, char* iface){
         pthread_mutex_lock(&(sr->rt_lock));		
-	/* Get current distance to node who sent ip_packet */
-	uint32_t my_ip_src = ip_packet->ip_src;
-	uint32_t my_cost;
-	uint32_t my_sr_dst_ip;
+	/* Check if shorter distance is available */
 	struct sr_rt *current = sr->routing_table;
-	struct in_addr my_sr_dest;
-	struct in_addr my_sr_gw;
-	struct in_addr my_sr_mask;
-	uint32_t my_sr_metric;
+	int i;
+	int cost_to_neighbor = 1;
 	
 	while (current != NULL) {
-		my_sr_dest = current->dest;
-		my_sr_dst_ip = my_sr_dest.s_addr;
-    		my_sr_gw = current->gw;
-    		my_sr_mask = current->mask;
-		my_sr_metric = current->metric;
-		if (my_sr_dst_ip == my_ip_src) {
-			my_cost = my_sr_metric;
-		}
-		current = current->next;
-	}
-	/* Check if my_cost + sender's cost to dst is less than current cost */
-	current = sr->routing_table;
-	struct entry *current_entry;
-	uint16_t my_rip_afi;
-	uint16_t my_rip_tag;
-	uint32_t my_rip_address;
-	uint32_t my_rip_mask;
-	uint32_t my_rip_next_hop;
-	uint32_t my_rip_metric;
-	
-	while (current != NULL) {
-		my_sr_dest = current->dest;
-		my_sr_dst_ip = my_sr_dest.s_addr;
-    		my_sr_gw = current->gw;
-    		my_sr_mask = current->mask;
-		my_sr_metric = current->metric;
-		current_entry = (struct entry*)(rip_packet + 2*sizeof(uint8_t) + sizeof(uint16_t));
-		while (current_entry != NULL) {
-			my_rip_afi = current_entry->afi; /* Address Family Identifier */
-      			my_rip_tag = current_entry->tag; /*Route Tag */
-      			my_rip_address = current_entry->address; /* IP Address */
-      			my_rip_mask = current_entry->mask; /* Subnet Mask */
-     			my_rip_next_hop = current_entry->next_hop; /* Next Hop */
-      			my_rip_metric = current_entry->metric; /* Metric */
-			/* Check if shorter route available */
-			if (my_sr_dst_ip == my_rip_address) {
-				if (my_sr_metric > my_cost + my_rip_metric) {
-					current->metric = my_rip_metric;					
+		for (i = 0; i < 25; i++) {
+			if ((current->dest.s_addr&current->mask.s_addr)==(rip_packet->entries[i].mask&rip_packet->entries[i].next_hop)) {
+				if (rip_packet->entries[i].metric + cost_to_neighbor > current->metric) {
+                    			current->metric = rip_packet->entries[i].metric + cost_to_neighbor;
+                    			current->gw.s_addr = ip_packet->ip_src;
+					memcpy(current->interface, iface, 32);
+                    			current->updated_time = 0;
 					send_rip_update(sr);
-				}
-			}		
-			current_entry = current_entry + sizeof(struct entry);
+                		}
+			}
 		}
 		current = current->next;
 	}
