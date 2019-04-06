@@ -382,12 +382,11 @@ void send_rip_update(struct sr_instance *sr){
 		struct sr_rt *my_rip_entry = sr->routing_table;
 		rip_index = 0;
 		while (my_rip_entry != NULL) {
-            		if ((my_rip_entry->gw.s_addr&current->mask) != (current->ip&current->mask)) {
-                		rip_pkt->entries[rip_index].metric = htonl(my_rip_entry->metric);
-               		 	rip_pkt->entries[rip_index].address = htonl(my_rip_entry->dest.s_addr);
+            		if (my_rip_entry->gw.s_addr != current->ip) {
+                		rip_pkt->entries[rip_index].metric = my_rip_entry->metric;
+               		 	rip_pkt->entries[rip_index].address = my_rip_entry->dest.s_addr;
                 		rip_pkt->entries[rip_index].mask = my_rip_entry->mask.s_addr;
-               			rip_pkt->entries[rip_index].next_hop = htonl(current->ip);
-                		rip_pkt->entries[rip_index].afi = htons(2);
+               			rip_pkt->entries[rip_index].next_hop = current->ip;
                 		rip_index++;
             		}
             		my_rip_entry = my_rip_entry->next;
@@ -409,7 +408,7 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 	
 	while (current != NULL) {
 		for (i = 0; i < 25; i++) {
-			if ((current->dest.s_addr&current->mask.s_addr)==(rip_packet->entries[i].mask&rip_packet->entries[i].next_hop)) {
+			if (current->dest.s_addr == rip_packet->entries[i].next_hop) {
 				if (rip_packet->entries[i].metric + cost_to_neighbor < current->metric) {
 					printf("Found Shorter Path\n");
                     			current->metric = rip_packet->entries[i].metric + cost_to_neighbor;
