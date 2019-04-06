@@ -402,7 +402,7 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 	while (current != NULL) {
 		for (i = 0; i < 25; i++) {
 			if ((current->dest.s_addr&current->mask.s_addr)==(rip_packet->entries[i].mask&rip_packet->entries[i].next_hop)) {
-				if (rip_packet->entries[i].metric + cost_to_neighbor > current->metric) {
+				if (rip_packet->entries[i].metric + cost_to_neighbor < current->metric) {
                     			current->metric = rip_packet->entries[i].metric + cost_to_neighbor;
                     			current->gw.s_addr = ip_packet->ip_src;
 					memcpy(current->interface, iface, 32);
