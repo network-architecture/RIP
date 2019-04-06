@@ -302,7 +302,6 @@ void send_rip_request(struct sr_instance *sr){
     		new_ip_hdr->ip_ttl = 64;
     		new_ip_hdr->ip_p = ip_protocol_udp;
     		new_ip_hdr->ip_sum = 0;
-    		new_ip_hdr->ip_dst = current->ip | ~current->mask;
 		struct sr_rt *my_match = sr_longest_prefix_match(sr, current->ip);
     		struct sr_if *interface = sr_get_interface(sr, my_match->interface);
 		new_ip_hdr->ip_dst = interface->ip;    
