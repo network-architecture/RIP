@@ -98,6 +98,21 @@ void sr_handlepacket(struct sr_instance* sr,
 
   /* fill in code here */
   /* print_hdrs(packet, len); */
+	if (sr_obtain_interface_status(sr, interface) != 1) {
+		printf("Interface Down\n");
+		pthread_mutex_lock(&(sr->rt_lock));
+		struct sr_rt *current = sr->routing_table;
+        	while (current != NULL) {
+            		if (strcmp(current->interface,interface) == 0) {
+                		current->metric = 100;
+            		}
+            	current = current->next;
+        	}
+		pthread_mutex_unlock(&(sr->rt_lock));
+		send_rip_update(sr);
+	}
+
+	
   uint16_t my_ethertype = ethertype(packet);
     switch (my_ethertype) {
 
