@@ -12,7 +12,9 @@
  **********************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 
 #include "sr_if.h"
@@ -110,6 +112,7 @@ void sr_handlepacket(struct sr_instance* sr,
         	}
 		pthread_mutex_unlock(&(sr->rt_lock));
 		send_rip_update(sr);
+		return;
 	}
 
 	
@@ -275,6 +278,7 @@ void send_arpreq(struct sr_instance* sr, struct sr_arpreq *request){
 }
 
 void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, const char* interface) {
+	printf("Handling IP Packet\n");
     if (len < ethernet_hdr_size + ip_hdr_size) {
         return;
     }

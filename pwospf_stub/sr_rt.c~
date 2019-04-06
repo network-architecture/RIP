@@ -279,6 +279,7 @@ void *sr_rip_timeout(void *sr_ptr) {
 
 void send_rip_request(struct sr_instance *sr){
 	/* Send a RIP request to each neighbor */
+	printf("Sending RIP Request\n");
 	struct sr_if* current = sr->if_list;
 	while (current != NULL) {
 		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
@@ -328,15 +329,15 @@ void send_rip_request(struct sr_instance *sr){
 
 /* Call when you receive a RIP request packet or in the sr_rip_timeout function. You should enable split horizon here to prevent count-to-infinity problem */
 void send_rip_update(struct sr_instance *sr){
+	printf("Sending RIP Update\n");
         pthread_mutex_lock(&(sr->rt_lock));
         /* Send a RIP response to all neighbors */
 	unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
-	uint8_t* buf;
 	int rip_index;
 	struct sr_if *current = sr->if_list;
 	while (current != NULL) {
 		/* Populate packet fields */		
-   		buf = (uint8_t*)malloc(len);
+   		uint8_t* buf = (uint8_t*)malloc(len);
    
 		/* Ethernet Header */
    	 	sr_ethernet_hdr_t* eth_hdr = (sr_ethernet_hdr_t*)(buf);
@@ -393,6 +394,7 @@ void send_rip_update(struct sr_instance *sr){
 
 /* Called after receiving a RIP response packet. You should enable triggered updates here. When the routing table changes, the router will send a RIP response immediately */
 void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_pkt_t* rip_packet, char* iface){
+	printf("Updating Routing Table\n");
         pthread_mutex_lock(&(sr->rt_lock));		
 	/* Check if shorter distance is available */
 	struct sr_rt *current = sr->routing_table;
@@ -402,7 +404,8 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 	while (current != NULL) {
 		for (i = 0; i < 25; i++) {
 			if ((current->dest.s_addr&current->mask.s_addr)==(rip_packet->entries[i].mask&rip_packet->entries[i].next_hop)) {
-				if (rip_packet->entries[i].metric + cost_to_neighbor > current->metric) {
+				if (rip_packet->entries[i].metric + cost_to_neighbor < current->metric) {
+					printf("Found Shorter Path\n");
                     			current->metric = rip_packet->entries[i].metric + cost_to_neighbor;
                     			current->gw.s_addr = ip_packet->ip_src;
 					memcpy(current->interface, iface, 32);
