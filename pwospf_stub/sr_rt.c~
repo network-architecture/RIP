@@ -284,15 +284,17 @@ void send_rip_request(struct sr_instance *sr){
 	while (current != NULL) {
 		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
    		uint8_t* buf = (uint8_t*)malloc(len);
-
 		/* Ethernet Header */
+		printf("Building Ethernet Header\n");
    	 	sr_ethernet_hdr_t* eth_hdr = (sr_ethernet_hdr_t*)(buf);
     		eth_hdr->ether_type = htons(ethertype_ip);
     		/*memset(eth_hdr->ether_shost, current->addr, 6);*/
 		memcpy(eth_hdr->ether_shost, current->addr, 6);
     		memset(eth_hdr->ether_dhost, 0x00, 6);
+		printf("Completed Ethernet Header\n");
 
 		/* IP Header */
+		printf("Building IP Header\n");
     		sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t));
     		new_ip_hdr->ip_hl = 5;
     		new_ip_hdr->ip_v = 4;
@@ -302,29 +304,33 @@ void send_rip_request(struct sr_instance *sr){
     		new_ip_hdr->ip_off = 0;
     		new_ip_hdr->ip_ttl = 64;
     		new_ip_hdr->ip_p = ip_protocol_udp;
-    		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t)); 
+    		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t));
 
 		struct sr_rt *my_match = sr_longest_prefix_match(sr, current->ip);
     		struct sr_if *interface = sr_get_interface(sr, my_match->interface);
 		new_ip_hdr->ip_dst = interface->ip;    
     		new_ip_hdr->ip_src = current->ip;
+		printf("Completed IP Header\n");
   
     	        /* UDP Header */
+		printf("Building UDP Header\n");
 		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 		udp_hdr->port_dst = 520;
 		udp_hdr->port_dst = 520;
 		udp_hdr-> udp_len = htons(len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
+		printf("Completed UDP Header\n");
 
 		/* RIP Packet */
+		printf("Building RIP Header\n");
 		sr_rip_pkt_t *rip_pkt = (sr_rip_pkt_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t));
 		rip_pkt->command = 1;
 		rip_pkt->version = 2;
-		                              
-    		sr_send_packet(sr, buf, len, current->name);
-    		free(buf);
+		printf("Completed RIP Header\n");		                              
+    		free(buf);	
+		sr_send_packet(sr, buf, len, current->name);
 		current = current->next;
-
 	}
+	printf("Completed RIP Request\n");
 }
 
 /* Call when you receive a RIP request packet or in the sr_rip_timeout function. You should enable split horizon here to prevent count-to-infinity problem */
@@ -375,7 +381,7 @@ void send_rip_update(struct sr_instance *sr){
 		rip_pkt->version = 2;
 		struct sr_rt *my_rip_entry = sr->routing_table;
 		rip_index = 0;
-		while(my_rip_entry != NULL){
+		while (my_rip_entry != NULL) {
             		if ((my_rip_entry->gw.s_addr&current->mask) != (current->ip&current->mask)) {
                 		rip_pkt->entries[rip_index].metric = htonl(my_rip_entry->metric);
                		 	rip_pkt->entries[rip_index].address = htonl(my_rip_entry->dest.s_addr);
