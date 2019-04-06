@@ -301,13 +301,12 @@ void send_rip_request(struct sr_instance *sr){
     		new_ip_hdr->ip_off = 0;
     		new_ip_hdr->ip_ttl = 64;
     		new_ip_hdr->ip_p = ip_protocol_udp;
-    		new_ip_hdr->ip_sum = 0;
-    		new_ip_hdr->ip_dst = current->ip | ~current->mask;
+    		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t)); 
+
 		struct sr_rt *my_match = sr_longest_prefix_match(sr, current->ip);
     		struct sr_if *interface = sr_get_interface(sr, my_match->interface);
 		new_ip_hdr->ip_dst = interface->ip;    
     		new_ip_hdr->ip_src = current->ip;
-    		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t)); 
   
     	        /* UDP Header */
 		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
@@ -331,16 +330,19 @@ void send_rip_request(struct sr_instance *sr){
 void send_rip_update(struct sr_instance *sr){
         pthread_mutex_lock(&(sr->rt_lock));
         /* Send a RIP response to all neighbors */
-	struct sr_rt *current = sr->routing_table;
+	unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
+	uint8_t* buf;
+	int rip_index;
+	struct sr_if *current = sr->if_list;
 	while (current != NULL) {
-		/* Populate packet fields */
-		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
-   		uint8_t* buf = (uint8_t*)malloc(len);
+		/* Populate packet fields */		
+   		buf = (uint8_t*)malloc(len);
    
 		/* Ethernet Header */
    	 	sr_ethernet_hdr_t* eth_hdr = (sr_ethernet_hdr_t*)(buf);
     		eth_hdr->ether_type = htons(ethertype_ip);
-    		memset(eth_hdr->ether_shost, 0x00, 6);
+    		/*memset(eth_hdr->ether_shost, 0x00, 6);*/
+		memcpy(eth_hdr->ether_shost, current->addr, 6);
     		memset(eth_hdr->ether_dhost, 0x00, 6);
 
 		/* IP Header */
@@ -349,16 +351,16 @@ void send_rip_update(struct sr_instance *sr){
     		new_ip_hdr->ip_v = 4;
     		/*new_ip_hdr->ip_tos = my_ip_hdr->ip_tos;*/
     		new_ip_hdr->ip_len = htons(len - sizeof(sr_ethernet_hdr_t));
-    		/*new_ip_hdr->ip_id = my_ip_hdr->ip_id;*/
+    		new_ip_hdr->ip_id = 0;
     		new_ip_hdr->ip_off = 0;
     		new_ip_hdr->ip_ttl = 64;
     		new_ip_hdr->ip_p = ip_protocol_udp;
-    		new_ip_hdr->ip_sum = 0;
-    		/*new_ip_hdr->ip_dst = my_ip_hdr->ip_src; */
-    		struct sr_rt *my_match = sr_longest_prefix_match(sr, new_ip_hdr->ip_dst);
-    		struct sr_if* interface = sr_get_interface(sr, my_match->interface);    
-    		new_ip_hdr->ip_src = interface->ip;
-    		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t)); 
+    		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t));
+
+    		struct sr_rt *my_match = sr_longest_prefix_match(sr, current->ip);
+    		struct sr_if *interface = sr_get_interface(sr, my_match->interface);
+		new_ip_hdr->ip_dst = interface->ip;    
+    		new_ip_hdr->ip_src = current->ip;
   
     	        /* UDP Header */
 		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
@@ -370,10 +372,19 @@ void send_rip_update(struct sr_instance *sr){
 		sr_rip_pkt_t *rip_pkt = (sr_rip_pkt_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t));
 		rip_pkt->command = 2;
 		rip_pkt->version = 2;
-		struct entry *my_rip_entry = (struct entry*)(rip_pkt + 2*sizeof(uint8_t) + sizeof(uint16_t));
-		
-                               
-    		/*sr_get_nexthop(sr, buf, len, my_match->gw.s_addr, interface);*/
+		struct sr_rt *my_rip_entry = sr->routing_table;
+		rip_index = 0;
+		while(my_rip_entry != NULL){
+            		if ((my_rip_entry->gw.s_addr&current->mask) != (current->ip&current->mask)) {
+                		rip_pkt->entries[rip_index].metric = htonl(my_rip_entry->metric);
+               		 	rip_pkt->entries[rip_index].address = htonl(my_rip_entry->dest.s_addr);
+                		rip_pkt->entries[rip_index].mask = my_rip_entry->mask.s_addr;
+               			rip_pkt->entries[rip_index].next_hop = htonl(current->ip);
+                		rip_pkt->entries[rip_index].afi = htons(2);
+                		rip_index++;
+            		}
+            		entry = entry->next;
+        	}                               
     		free(buf);
 		current = current->next;
 	}
