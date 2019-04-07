@@ -96,7 +96,7 @@ void sr_handlepacket(struct sr_instance* sr,
   assert(packet);
   assert(interface);
 
-  printf("*** -> Received packet of length %d \n",len);
+  /*printf("*** -> Received packet of length %d \n",len);*/
 
   /* fill in code here */
   /* print_hdrs(packet, len); */
@@ -122,7 +122,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
 
         case ethertype_ip:
-            printf("The packet is a data packet\n");
+            /*printf("The packet is a data packet\n");*/
             /*sr_handle_ip(sr, packet + ethernet_hdr_size, len - ethernet_hdr_size, interface);*/
             sr_handle_ip(sr, packet, len, interface);
             return;
@@ -273,13 +273,13 @@ void send_arpreq(struct sr_instance* sr, struct sr_arpreq *request){
     arphdr->ar_sip = interface->ip;
     memcpy(arphdr->ar_tha, tstf, 6);
     arphdr->ar_tip = request->ip;
-    printf("Sending ARP request\n");
+    /*printf("Sending ARP request\n");*/
     sr_send_packet(sr, buf, 42, interface->name);
     free(buf);
 }
 
 void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, const char* interface) {
-	printf("Handling IP Packet\n");
+	/*printf("Handling IP Packet\n");*/
     if (len < ethernet_hdr_size + ip_hdr_size) {
         return;
     }
@@ -295,11 +295,11 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
 
 
 	if (my_ip_hdr->ip_p == ip_protocol_udp) {
-		printf("UDP Packet\n");
+		/*printf("UDP Packet\n");*/
 		sr_udp_hdr_t *my_udp_hdr = (sr_udp_hdr_t*)(my_ip_hdr + ip_hdr_size);
-		printf("%d\n",my_udp_hdr->port_dst);
+		/*printf("%d\n",my_udp_hdr->port_dst);*/
 		if (my_udp_hdr->port_dst == 520) {
-			printf("IP Packet is RIP Packet\n");
+			/*printf("IP Packet is RIP Packet\n");*/
 			sr_rip_pkt_t *my_rip_pkt = (sr_rip_pkt_t*)(my_udp_hdr + udp_hdr_size);
 			sr_handle_rip(sr, my_ip_hdr, my_rip_pkt, interface);
 		}
@@ -309,8 +309,8 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
 
     struct sr_if *to_router_interface = sr_find_ip(sr, my_ip_hdr->ip_dst);
     if (to_router_interface) {
-	printf("IP Packet Is For Me\n");
-	printf("%d\n", my_ip_hdr->ip_p);
+	/*printf("IP Packet Is For Me\n");*/
+	/*printf("%d\n", my_ip_hdr->ip_p);*/
         if (my_ip_hdr->ip_p == ip_protocol_icmp) {
             sr_icmp_echo_reply(sr, my_ip_hdr);
         }
@@ -341,18 +341,18 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
 }
 
 void sr_handle_rip(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr, sr_rip_pkt_t* my_rip_pkt, const char* interface) {
-	printf("Handling RIP packet\n");
+	/*printf("Handling RIP packet\n");*/
 	uint8_t my_command = my_rip_pkt->command;
 	/*printf("Command %d\n", my_rip_pkt->command);*/
 	/*printf("Version %d\n", my_rip_pkt->version);*/
 	/*printf("Unused %d\n", my_rip_pkt->unused);*/
 	if (my_command == 1) {
-		printf("RIP Request\n");
+		/*printf("RIP Request\n");*/
 		send_rip_update(sr);
 	}
 	else if (my_command == 2) {
-		printf("RIP Response\n");
-		update_route_table(sr, my_ip_hdr, my_rip_pkt, interface);
+		/*printf("RIP Response\n");*/
+		/*update_route_table(sr, my_ip_hdr, my_rip_pkt, interface);*/
 	} 	
 }
 
@@ -519,6 +519,7 @@ void sr_icmp_time_exceeded(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr) {
 }
 
 void sr_get_nexthop(struct sr_instance* sr, uint8_t* packet, unsigned int len, uint32_t s_addr, struct sr_if* interface) {
+	/*printf("Get Next Hop\n");*/
     assert(sr);
     assert(packet);
     assert(interface);
@@ -528,7 +529,7 @@ void sr_get_nexthop(struct sr_instance* sr, uint8_t* packet, unsigned int len, u
         sr_ethernet_hdr_t* my_eth_hdr = (sr_ethernet_hdr_t*)(packet);
         memcpy(my_eth_hdr->ether_dhost, my_arp->mac, 6);
         memcpy(my_eth_hdr->ether_shost, interface->addr, 6);
-        printf("FIRST TRY\n");
+        /*printf("FIRST TRY\n");*/
         sr_send_packet(sr, packet, len, interface->name);
         /* Free entry? */
     }
