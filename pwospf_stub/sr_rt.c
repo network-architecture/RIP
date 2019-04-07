@@ -227,33 +227,44 @@ void *sr_rip_timeout(void *sr_ptr) {
         if(sr->routing_table != NULL){
             current = sr->routing_table;
         }
-        struct sr_rt *next = NULL;
-        if(sr->routing_table != NULL){
-            next = current->next;
-        }
-        if(current->updated_time > 20){
-            if(next != NULL){
-                sr->routing_table = next;
-            }
-            else{
-                sr->routing_table = NULL;
-            }
-        }
         while(current->next != NULL){
-            if(next->updated_time > 20){
-                if(next->next != NULL){
-                    current->next = next->next;
-                }
-                else{
-                    current->next = NULL;
-                    break;
-                }
+            if(current->updated_time > 20){
+                current->metric = 16;
             }
             current = current->next;
-            if(current->next != NULL){
-                next = current->next;
-            }
         }
+        ////ALTERNATE METHOD
+        // struct sr_rt *current = NULL;
+        // if(sr->routing_table != NULL){
+        //     current = sr->routing_table;
+        // }
+        // struct sr_rt *next = NULL;
+        // if(sr->routing_table != NULL){
+        //     next = current->next;
+        // }
+        // if(current->updated_time > 20){
+        //     if(next != NULL){
+        //         sr->routing_table = next;
+        //     }
+        //     else{
+        //         sr->routing_table = NULL;
+        //     }
+        // }
+        // while(current->next != NULL){
+        //     if(next->updated_time > 20){
+        //         if(next->next != NULL){
+        //             current->next = next->next;
+        //         }
+        //         else{
+        //             current->next = NULL;
+        //             break;
+        //         }
+        //     }
+        //     current = current->next;
+        //     if(current->next != NULL){
+        //         next = current->next;
+        //     }
+        // }
         
         pthread_mutex_unlock(&(sr->rt_lock));
     }
@@ -262,6 +273,54 @@ void *sr_rip_timeout(void *sr_ptr) {
 
 void send_rip_request(struct sr_instance *sr){
     /* Fill your code here */
+    uint8_t ffff[6] = {255,255,255,255,255,255};
+    uint8_t tstf[6] = {0,0,0,0,0,0};
+    len = 0;
+    struct sr_rt *current = NULL;
+    if(sr->routing_table != NULL){
+        current = sr->routing_table;
+    }
+    while(current->next != NULL){
+        len = len+1;
+        current = current->next;
+    }
+    uint8_t *buf = malloc(sizeof(sr_rip_pkt_t)+sizeof(sr_ip_hdr_t)+sizeof(sr_udp_hdr_t));
+    sr_ip_hdr_t *ip_header = (sr_ip_hdr_t *)buf;
+    sr_udp_hdr_t *udp_header = (sr_udp_hdr_t *)(buf+sizeof(sr_ip_hdr_t));
+    sr_rip_pkt_t *rip_packet = (sr_rip_pkt_t *)(buf+sizeof(sr_ip_hdr_t)+sizeof(sr_udp_hdr_t))
+    // POPULATE IP HEADER
+    uint32_t chsum = cksum(ip_hdr, ip_hdr_size);
+    ip_hdr->ip_sum = chsum;
+    memcpy(ip_hdr->ip_dst, ffff, 6);
+    ip_hdr->ip_src = NULL; //FIX THIS LATER
+    ip_hdr->ip_ttl = 255;
+    ip_hdr->ip_p = ip_protocol_udp;
+    ip_hdr->ip_len = sizeof(sr_ip_hdr_t);
+    // POPULATE UDP HEADER
+    udp_header->port_src = 520;
+    udp_header->port_dst = 520;
+    udp_header->udp_len = sizeof(sr_rip_pkt_t)+sizeof(sr_ip_hdr_t)+sizeof(sr_udp_hdr_t); //CHECK
+    udp_header->udp_sum = cksum(udp_header, sizeof(udp_header));
+    //POPULATE RIP PACKETS
+    int cur = 0;
+    rip_packet->command = 1;
+    rip_packet->version = 2;
+    rip_packet->unused = 0;
+    if(sr->routing_table != NULL){
+        current = sr->routing_table;
+    }
+    while(cur<len){
+        rip_packet->entries[cur]->afi = 2;
+        rip_packet->entries[cur]->tag = 13;
+        rip_packet->entries[cur]->address = current->dest;
+        rip_packet->entries[cur]->mask = current->mask;
+        rip_packet->entries[cur]->next_hop = current->gw; //ENSURE THAT GW IS CORRECT
+        rip_packet->entries[cur]->metric = current->metric;
+        cur = cur+1;
+        if(current->next != NULL){
+            current = current->next;
+        }
+    }
 }
 
 void send_rip_update(struct sr_instance *sr){
