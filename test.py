@@ -29,7 +29,7 @@ def test_ping(ip, expect_result):
         result = 1
     if 'Destination Net Unreachable' in a:
         result = 0
-    println("Ping results: "+str(result))
+    print 'Ping results: '+str(result)
     if result == expect_result:
         return True
     else:
@@ -57,8 +57,8 @@ def test_traceroute(ip, expect_hop):
             return False
     if ip_address != ip:
         return False
-    println("Hops in TR: "+str(count))
-    println("Hops expected: "+str(count))
+    print 'Hops in TR: '+str(count)
+    print 'Hops expected: '+str(count)
     if count == expect_hop:
         return True
     else:
