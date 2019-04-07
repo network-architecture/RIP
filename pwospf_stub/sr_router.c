@@ -100,6 +100,7 @@ void sr_handlepacket(struct sr_instance* sr,
 
   /* fill in code here */
   /* print_hdrs(packet, len); */
+	/*printf("Checking Interface Status\n");
 	if (sr_obtain_interface_status(sr, interface) != 1) {
 		printf("Interface Down\n");
 		pthread_mutex_lock(&(sr->rt_lock));
@@ -113,7 +114,7 @@ void sr_handlepacket(struct sr_instance* sr,
 		pthread_mutex_unlock(&(sr->rt_lock));
 		send_rip_update(sr);
 		return;
-	}
+	}*/
 
 	
   uint16_t my_ethertype = ethertype(packet);
@@ -300,10 +301,12 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
         }
 	else if (my_ip_hdr->ip_p == ip_protocol_udp) {
 		sr_udp_hdr_t *my_udp_hdr = (sr_udp_hdr_t*)(packet + ethernet_hdr_size + ip_hdr_size);
+		printf("%d",ntohs(my_udp_hdr->port_dst));
 		if (ntohs(my_udp_hdr->port_dst) != 520) {
 			sr_icmp_port_unreachable(sr, my_ip_hdr);
 		}
         	else {
+			printf("IP Packet is RIP Packet\n");
 			sr_rip_pkt_t *my_rip_pkt = (sr_rip_pkt_t*)(my_udp_hdr + udp_hdr_size);
 			sr_handle_rip(sr, my_ip_hdr, my_rip_pkt, interface);
 		}

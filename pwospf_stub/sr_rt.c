@@ -240,38 +240,17 @@ void *sr_rip_timeout(void *sr_ptr) {
         pthread_mutex_lock(&(sr->rt_lock));
         /* Fill your code here */
         send_rip_request(sr);
+        send_rip_request(sr);
         struct sr_rt *current = NULL;
         if(sr->routing_table != NULL){
             current = sr->routing_table;
         }
-        struct sr_rt *next = NULL;
-        if(sr->routing_table != NULL){
-            next = current->next;
-        }
-        if(current->updated_time > 20){
-            if(next != NULL){
-                sr->routing_table = next;
-            }
-            else{
-                sr->routing_table = NULL;
-            }
-        }
         while(current->next != NULL){
-            if(next->updated_time > 20){
-                if(next->next != NULL){
-                    current->next = next->next;
-                }
-                else{
-                    current->next = NULL;
-                    break;
-                }
+            if(current->updated_time > 20){
+                current->metric = 16;
             }
             current = current->next;
-            if(current->next != NULL){
-                next = current->next;
-            }
-        }
-        
+        }        
         pthread_mutex_unlock(&(sr->rt_lock));
     }
     return NULL;
@@ -281,20 +260,23 @@ void send_rip_request(struct sr_instance *sr){
 	/* Send a RIP request to each neighbor */
 	printf("Sending RIP Request\n");
 	struct sr_if* current = sr->if_list;
+	/*printf("Current Assigned\n");*/
 	while (current != NULL) {
+		uint8_t ffff[6] = {255,255,255,255,255,255};
+    		uint8_t tstf[6] = {0,0,0,0,0,0};		
 		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
    		uint8_t* buf = (uint8_t*)malloc(len);
 		/* Ethernet Header */
-		printf("Building Ethernet Header\n");
+		/*printf("Building Ethernet Header\n");*/
    	 	sr_ethernet_hdr_t* eth_hdr = (sr_ethernet_hdr_t*)(buf);
     		eth_hdr->ether_type = htons(ethertype_ip);
     		/*memset(eth_hdr->ether_shost, current->addr, 6);*/
 		memcpy(eth_hdr->ether_shost, current->addr, 6);
     		memset(eth_hdr->ether_dhost, 0x00, 6);
-		printf("Completed Ethernet Header\n");
+		/*printf("Completed Ethernet Header\n");*/
 
 		/* IP Header */
-		printf("Building IP Header\n");
+		/*printf("Building IP Header\n");*/
     		sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t));
     		new_ip_hdr->ip_hl = 5;
     		new_ip_hdr->ip_v = 4;
@@ -305,29 +287,28 @@ void send_rip_request(struct sr_instance *sr){
     		new_ip_hdr->ip_ttl = 64;
     		new_ip_hdr->ip_p = ip_protocol_udp;
     		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t));
-
-		struct sr_rt *my_match = sr_longest_prefix_match(sr, current->ip);
-    		struct sr_if *interface = sr_get_interface(sr, my_match->interface);
-		new_ip_hdr->ip_dst = interface->ip;    
+		/*memcpy(new_ip_hdr->ip_dst, ffff, 6);*/
+		new_ip_hdr->ip_dst = 4294967295;   
     		new_ip_hdr->ip_src = current->ip;
-		printf("Completed IP Header\n");
+		/*printf("Completed IP Header\n");*/
   
     	        /* UDP Header */
-		printf("Building UDP Header\n");
+		/*printf("Building UDP Header\n");*/
 		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 		udp_hdr->port_dst = 520;
 		udp_hdr->port_dst = 520;
 		udp_hdr-> udp_len = htons(len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
-		printf("Completed UDP Header\n");
+		/*printf("Completed UDP Header\n");*/
 
 		/* RIP Packet */
-		printf("Building RIP Header\n");
+		/*printf("Building RIP Header\n");*/
 		sr_rip_pkt_t *rip_pkt = (sr_rip_pkt_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t));
 		rip_pkt->command = 1;
 		rip_pkt->version = 2;
-		printf("Completed RIP Header\n");		                              
-    		free(buf);	
+		/*printf("Completed RIP Header\n");*/		                              	
 		sr_send_packet(sr, buf, len, current->name);
+		/*printf("Sent Packet\n");*/
+		free(buf);
 		current = current->next;
 	}
 	printf("Completed RIP Request\n");
@@ -338,11 +319,11 @@ void send_rip_update(struct sr_instance *sr){
 	printf("Sending RIP Update\n");
         pthread_mutex_lock(&(sr->rt_lock));
         /* Send a RIP response to all neighbors */
-	unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
 	int rip_index;
 	struct sr_if *current = sr->if_list;
 	while (current != NULL) {
-		/* Populate packet fields */		
+		/* Populate packet fields */
+		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);		
    		uint8_t* buf = (uint8_t*)malloc(len);
    
 		/* Ethernet Header */
@@ -363,10 +344,7 @@ void send_rip_update(struct sr_instance *sr){
     		new_ip_hdr->ip_ttl = 64;
     		new_ip_hdr->ip_p = ip_protocol_udp;
     		new_ip_hdr->ip_sum = cksum(buf + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t));
-
-    		struct sr_rt *my_match = sr_longest_prefix_match(sr, current->ip);
-    		struct sr_if *interface = sr_get_interface(sr, my_match->interface);
-		new_ip_hdr->ip_dst = interface->ip;    
+		new_ip_hdr->ip_dst = 4294967295;   
     		new_ip_hdr->ip_src = current->ip;
   
     	        /* UDP Header */
@@ -390,7 +368,8 @@ void send_rip_update(struct sr_instance *sr){
                 		rip_index++;
             		}
             		my_rip_entry = my_rip_entry->next;
-        	}                               
+        	} 
+		sr_send_packet(sr, buf, len, current->name);                              
     		free(buf);
 		current = current->next;
 	}
