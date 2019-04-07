@@ -272,7 +272,9 @@ void send_rip_request(struct sr_instance *sr){
     		eth_hdr->ether_type = htons(ethertype_ip);
     		/*memset(eth_hdr->ether_shost, current->addr, 6);*/
 		memcpy(eth_hdr->ether_shost, current->addr, 6);
-    		memset(eth_hdr->ether_dhost, 0x00, 6);
+    		/*memset(eth_hdr->ether_dhost, 0x00, 6);*/
+		memcpy(eth_hdr->ether_dhost, ffff, 6);
+		
 		/*printf("Completed Ethernet Header\n");*/
 
 		/* IP Header */
@@ -281,7 +283,7 @@ void send_rip_request(struct sr_instance *sr){
     		new_ip_hdr->ip_hl = 5;
     		new_ip_hdr->ip_v = 4;
     		/*new_ip_hdr->ip_tos = my_ip_hdr->ip_tos;*/
-    		new_ip_hdr->ip_len = htons(len - sizeof(sr_ethernet_hdr_t));
+    		new_ip_hdr->ip_len = htons(sizeof(sr_ip_hdr_t));
     		new_ip_hdr->ip_id = 0;
     		new_ip_hdr->ip_off = 0;
     		new_ip_hdr->ip_ttl = 64;
@@ -294,17 +296,18 @@ void send_rip_request(struct sr_instance *sr){
   
     	        /* UDP Header */
 		/*printf("Building UDP Header\n");*/
-		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(new_ip_hdr + sizeof(sr_ip_hdr_t));
+		udp_hdr->port_src = 520;
 		udp_hdr->port_dst = 520;
-		udp_hdr->port_dst = 520;
-		udp_hdr-> udp_len = htons(len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
+		udp_hdr-> udp_len = htons(sizeof(sr_udp_hdr_t));
 		/*printf("Completed UDP Header\n");*/
 
 		/* RIP Packet */
 		/*printf("Building RIP Header\n");*/
-		sr_rip_pkt_t *rip_pkt = (sr_rip_pkt_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t));
+		sr_rip_pkt_t *rip_pkt = (sr_rip_pkt_t*)(udp_hdr + sizeof(sr_udp_hdr_t));
 		rip_pkt->command = 1;
 		rip_pkt->version = 2;
+		rip_pkt->unused = 0;
 		/*printf("Completed RIP Header\n");*/		                              	
 		sr_send_packet(sr, buf, len, current->name);
 		/*printf("Sent Packet\n");*/
@@ -325,13 +328,15 @@ void send_rip_update(struct sr_instance *sr){
 		/* Populate packet fields */
 		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);		
    		uint8_t* buf = (uint8_t*)malloc(len);
+		uint8_t ffff[6] = {255,255,255,255,255,255};
+    		uint8_t tstf[6] = {0,0,0,0,0,0};
    
 		/* Ethernet Header */
    	 	sr_ethernet_hdr_t* eth_hdr = (sr_ethernet_hdr_t*)(buf);
     		eth_hdr->ether_type = htons(ethertype_ip);
     		/*memset(eth_hdr->ether_shost, 0x00, 6);*/
 		memcpy(eth_hdr->ether_shost, current->addr, 6);
-    		memset(eth_hdr->ether_dhost, 0x00, 6);
+		memcpy(eth_hdr->ether_dhost, ffff, 6);
 
 		/* IP Header */
     		sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t));
@@ -348,15 +353,16 @@ void send_rip_update(struct sr_instance *sr){
     		new_ip_hdr->ip_src = current->ip;
   
     	        /* UDP Header */
-		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
-		udp_hdr->port_dst = 520;
+		sr_udp_hdr_t *udp_hdr = (sr_udp_hdr_t*)(new_ip_hdr + sizeof(sr_ip_hdr_t));
+		udp_hdr->port_src = 520;
 		udp_hdr->port_dst = 520;
 		udp_hdr-> udp_len = htons(len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
 
 		/* RIP Packet */
-		sr_rip_pkt_t *rip_pkt = (sr_rip_pkt_t*)(buf + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t));
+		sr_rip_pkt_t *rip_pkt = (sr_rip_pkt_t*)(udp_hdr + sizeof(sr_udp_hdr_t));
 		rip_pkt->command = 2;
 		rip_pkt->version = 2;
+		rip_pkt->unused = 0;
 		struct sr_rt *my_rip_entry = sr->routing_table;
 		rip_index = 0;
 		while (my_rip_entry != NULL) {
@@ -387,7 +393,7 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 	
 	while (current != NULL) {
 		for (i = 0; i < 25; i++) {
-			if (current->dest.s_addr == rip_packet->entries[i].next_hop) {
+			if ((current->dest.s_addr & current->mask.s_addr) == (rip_packet->entries[i].mask & rip_packet->entries[i].address)) {
 				if (rip_packet->entries[i].metric + cost_to_neighbor < current->metric) {
 					printf("Found Shorter Path\n");
                     			current->metric = rip_packet->entries[i].metric + cost_to_neighbor;

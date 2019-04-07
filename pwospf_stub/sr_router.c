@@ -288,11 +288,29 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
     my_ip_hdr->ip_sum = 0;
     uint32_t calculated_cksum = cksum(my_ip_hdr, my_ip_hdr->ip_hl * 4);
     if (calculated_cksum != received_cksum) {
-        return;
+	printf("Packet Dropped\n");
+        /*return;*/
     }
     my_ip_hdr->ip_sum = calculated_cksum;
+
+
+	if (my_ip_hdr->ip_p == ip_protocol_udp) {
+		printf("UDP Packet\n");
+		sr_udp_hdr_t *my_udp_hdr = (sr_udp_hdr_t*)(my_ip_hdr + ip_hdr_size);
+		printf("%d\n",my_udp_hdr->port_dst);
+		if (my_udp_hdr->port_dst == 520) {
+			printf("IP Packet is RIP Packet\n");
+			sr_rip_pkt_t *my_rip_pkt = (sr_rip_pkt_t*)(my_udp_hdr + udp_hdr_size);
+			sr_handle_rip(sr, my_ip_hdr, my_rip_pkt, interface);
+		}
+        }
+
+
+
     struct sr_if *to_router_interface = sr_find_ip(sr, my_ip_hdr->ip_dst);
     if (to_router_interface) {
+	printf("IP Packet Is For Me\n");
+	printf("%d\n", my_ip_hdr->ip_p);
         if (my_ip_hdr->ip_p == ip_protocol_icmp) {
             sr_icmp_echo_reply(sr, my_ip_hdr);
         }
@@ -300,16 +318,7 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
             sr_icmp_port_unreachable(sr, my_ip_hdr);
         }
 	else if (my_ip_hdr->ip_p == ip_protocol_udp) {
-		sr_udp_hdr_t *my_udp_hdr = (sr_udp_hdr_t*)(packet + ethernet_hdr_size + ip_hdr_size);
-		printf("%d",ntohs(my_udp_hdr->port_dst));
-		if (ntohs(my_udp_hdr->port_dst) != 520) {
-			sr_icmp_port_unreachable(sr, my_ip_hdr);
-		}
-        	else {
-			printf("IP Packet is RIP Packet\n");
-			sr_rip_pkt_t *my_rip_pkt = (sr_rip_pkt_t*)(my_udp_hdr + udp_hdr_size);
-			sr_handle_rip(sr, my_ip_hdr, my_rip_pkt, interface);
-		}
+		sr_icmp_port_unreachable(sr, my_ip_hdr);
         }
     }
     else {
@@ -334,6 +343,9 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
 void sr_handle_rip(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr, sr_rip_pkt_t* my_rip_pkt, const char* interface) {
 	printf("Handling RIP packet\n");
 	uint8_t my_command = my_rip_pkt->command;
+	/*printf("Command %d\n", my_rip_pkt->command);*/
+	/*printf("Version %d\n", my_rip_pkt->version);*/
+	/*printf("Unused %d\n", my_rip_pkt->unused);*/
 	if (my_command == 1) {
 		printf("RIP Request\n");
 		send_rip_update(sr);
