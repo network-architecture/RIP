@@ -294,16 +294,16 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
     my_ip_hdr->ip_sum = calculated_cksum;
 
 
-	if (my_ip_hdr->ip_p == ip_protocol_udp) {
-		printf("UDP Packet\n");
-		sr_udp_hdr_t *my_udp_hdr = (sr_udp_hdr_t*)(my_ip_hdr + ip_hdr_size);
-		printf("%d\n",my_udp_hdr->port_dst);
-		if (my_udp_hdr->port_dst == 520) {
-			printf("IP Packet is RIP Packet\n");
-			sr_rip_pkt_t *my_rip_pkt = (sr_rip_pkt_t*)(my_udp_hdr + udp_hdr_size);
-			sr_handle_rip(sr, my_ip_hdr, my_rip_pkt, interface);
-		}
-        }
+	// if (my_ip_hdr->ip_p == ip_protocol_udp) {
+	// 	printf("UDP Packet\n");
+	// 	sr_udp_hdr_t *my_udp_hdr = (sr_udp_hdr_t*)(my_ip_hdr + ip_hdr_size);
+	// 	printf("%d\n",my_udp_hdr->port_dst);
+	// 	if (my_udp_hdr->port_dst == 520) {
+	// 		printf("IP Packet is RIP Packet\n");
+	// 		sr_rip_pkt_t *my_rip_pkt = (sr_rip_pkt_t*)(my_udp_hdr + udp_hdr_size);
+	// 		sr_handle_rip(sr, my_ip_hdr, my_rip_pkt, interface);
+	// 	}
+ //    }
 
 
 
