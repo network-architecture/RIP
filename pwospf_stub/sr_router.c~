@@ -352,7 +352,7 @@ void sr_handle_rip(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr, sr_rip_pkt_t*
 	}
 	else if (my_command == 2) {
 		/*printf("RIP Response\n");*/
-		/*update_route_table(sr, my_ip_hdr, my_rip_pkt, interface);*/
+		update_route_table(sr, my_ip_hdr, my_rip_pkt, interface);
 	} 	
 }
 
