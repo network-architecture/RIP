@@ -245,7 +245,10 @@ void *sr_rip_timeout(void *sr_ptr) {
             current = sr->routing_table;
         }
         while(current->next != NULL){
-            if(current->updated_time > 20){
+	    time_t now;
+            time(&now);
+            double dif = difftime(now, current->updated_time);
+            if(dif > 20){
                 /*current->metric = 16;*/
             }
             current = current->next;
@@ -257,7 +260,6 @@ void *sr_rip_timeout(void *sr_ptr) {
 
 void send_rip_request(struct sr_instance *sr){
 	/* Send a RIP request to each neighbor */
-	printf("Sending RIP Request\n");
 	struct sr_if* current = sr->if_list;
 	while (current != NULL) {
 		uint8_t ffff[6] = {255,255,255,255,255,255};		
@@ -303,15 +305,13 @@ void send_rip_request(struct sr_instance *sr){
 
 /* Call when you receive a RIP request packet or in the sr_rip_timeout function. You should enable split horizon here to prevent count-to-infinity problem */
 void send_rip_update(struct sr_instance *sr){
-	printf("Sending RIP Update\n");
         pthread_mutex_lock(&(sr->rt_lock));
         /* Send a RIP response to all neighbors */
 	int rip_index;
 	struct sr_if *current = sr->if_list;
 	while (current != NULL) {
 		/* Populate packet fields */
-		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
-		printf("LENGTH: %d\n",len);		
+		unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);		
    		uint8_t* buf = (uint8_t*)malloc(len);
 		uint8_t ffff[6] = {255,255,255,255,255,255};
    
@@ -357,7 +357,6 @@ void send_rip_update(struct sr_instance *sr){
                 	rip_pkt->entries[rip_index].mask = my_rip_entry->mask.s_addr;
 			rip_pkt->entries[rip_index].next_hop = current->ip;
                 	rip_index++;
-			printf("%d\n", rip_index);
 			my_rip_entry = my_rip_entry->next;			
         	}
 		while (rip_index < 25){
@@ -369,19 +368,15 @@ void send_rip_update(struct sr_instance *sr){
 			rip_pkt->entries[rip_index].next_hop = NULL;
                 	rip_index++;
 		}
-		sr_print_routing_table(sr);
-		sr_send_packet(sr, buf, len, current->name);
-		printf("Sent Packet\n");                              
+		sr_send_packet(sr, buf, len, current->name);                              
     		free(buf);
 		current = current->next;
 	}
         pthread_mutex_unlock(&(sr->rt_lock));
-	printf("Exiting Sending RIP Update\n");
 }
 
 /* Called after receiving a RIP response packet. You should enable triggered updates here. When the routing table changes, the router will send a RIP response immediately */
 void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_pkt_t* rip_packet, char* iface){
-	printf("Updating Routing Table\n");
         pthread_mutex_lock(&(sr->rt_lock));		
 	struct sr_rt *current;
 	int i;
@@ -393,14 +388,15 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 			new_entry = 1; 
 			while (current != NULL) {
 				if((current->dest.s_addr&current->mask.s_addr)==(rip_packet->entries[i].mask&rip_packet->entries[i].address)) {
-				/*if (current->dest.s_addr == rip_packet->entries[i].address) {*/
 					new_entry = 0;
 					if (rip_packet->entries[i].metric + cost_to_neighbor < current->metric) {
-						printf("Found Shorter Path\n");
 		            			current->metric = rip_packet->entries[i].metric + cost_to_neighbor;
 						current->gw.s_addr = ip_packet->ip_src;
 						memcpy(current->interface, iface, 32);
-		            			current->updated_time = 0;
+						time_t now;
+        					time(&now);
+		            			current->updated_time = now;
+						send_rip_update(sr);
 		        		}
 				}
 				current = current->next;
@@ -408,13 +404,13 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 			if (new_entry == 1) {					
 					struct in_addr dest;
 	    				dest.s_addr = rip_packet->entries[i].mask&rip_packet->entries[i].address;
-					printf("NEW ENTRY: %s AT i=%d\n", inet_ntoa(dest),i);
 	    				struct in_addr gw;
 					gw.s_addr = ip_packet->ip_src;
 	    				struct in_addr mask;
 	    				mask.s_addr = rip_packet->entries[i].mask;
 					sr_add_rt_entry(sr, dest, gw, mask, rip_packet->entries[i].metric + cost_to_neighbor, iface);
 					new_entry = 0;
+					send_rip_update(sr);
 			}
 		}
 	}

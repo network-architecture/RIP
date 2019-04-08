@@ -274,6 +274,7 @@ void send_arpreq(struct sr_instance* sr, struct sr_arpreq *request){
     memcpy(arphdr->ar_tha, tstf, 6);
     arphdr->ar_tip = request->ip;
     /*printf("Sending ARP request\n");*/
+    
     sr_send_packet(sr, buf, 42, interface->name);
     free(buf);
 }
@@ -288,7 +289,6 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
     my_ip_hdr->ip_sum = 0;
     uint32_t calculated_cksum = cksum(my_ip_hdr, my_ip_hdr->ip_hl * 4);
     if (calculated_cksum != received_cksum) {
-	printf("Packet Dropped\n");
         /*return;*/
     }
     my_ip_hdr->ip_sum = calculated_cksum;
@@ -302,6 +302,7 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
 			/*printf("IP Packet is RIP Packet\n");*/
 			sr_rip_pkt_t *my_rip_pkt = (sr_rip_pkt_t*)(my_udp_hdr + 1);
 			sr_handle_rip(sr, my_ip_hdr, my_rip_pkt, interface);
+			return;
 		}
         }
 
@@ -357,6 +358,7 @@ void sr_handle_rip(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr, sr_rip_pkt_t*
 }
 
 void sr_icmp_echo_reply(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr) {
+    sr_print_routing_table(sr);
     printf("ICMP echo reply\n");
     uint16_t iplen = ntohs(my_ip_hdr->ip_len);
     unsigned int len = ethernet_hdr_size + iplen;
@@ -523,7 +525,14 @@ void sr_get_nexthop(struct sr_instance* sr, uint8_t* packet, unsigned int len, u
     assert(sr);
     assert(packet);
     assert(interface);
-    
+    if(s_addr == 0){
+	sr_ethernet_hdr_t* temp_eth_hdr = (sr_ethernet_hdr_t*)(packet);
+	sr_ip_hdr_t* temp_ip_hdr = (sr_ip_hdr_t*)(temp_eth_hdr+1);
+	s_addr = temp_ip_hdr->ip_dst;
+	struct in_addr test;
+    	test.s_addr = s_addr;
+    	printf("%s\n", inet_ntoa(test));
+    }
     struct sr_arpentry* my_arp = sr_arpcache_lookup(&sr->cache, s_addr);
     if (my_arp) {
         sr_ethernet_hdr_t* my_eth_hdr = (sr_ethernet_hdr_t*)(packet);
@@ -534,7 +543,8 @@ void sr_get_nexthop(struct sr_instance* sr, uint8_t* packet, unsigned int len, u
         /* Free entry? */
     }
     else {
+	printf("NOT IN CACHE\n");
         struct sr_arpreq *request = sr_arpcache_queuereq(&sr->cache, s_addr, packet, len, interface->name);
-        handle_arpreq(sr,request,&sr->cache);
+        handle_arpreq(sr,request,&sr->cache);\
     }
 }
