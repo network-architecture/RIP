@@ -297,7 +297,7 @@ void send_rip_request(struct sr_instance *sr){
 		rip_pkt->version = 2;
 		rip_pkt->unused = 0;	                              	
 		sr_send_packet(sr, buf, len, current->name);
-		/*free(buf);*/
+		free(buf);
 		current = current->next;
 	}
 }
@@ -374,7 +374,7 @@ void send_rip_update(struct sr_instance *sr){
 		sr_print_routing_table(sr);
 		sr_send_packet(sr, buf, len, current->name);
 		printf("Sent Packet\n");                              
-    		/*free(buf);*/
+    	free(buf);
 		printf("Freed Buffer\n");
 		current = current->next;
 	}
