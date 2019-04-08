@@ -343,9 +343,6 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
 void sr_handle_rip(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr, sr_rip_pkt_t* my_rip_pkt, const char* interface) {
 	/*printf("Handling RIP packet\n");*/
 	uint8_t my_command = my_rip_pkt->command;
-	/*printf("Command %d\n", my_rip_pkt->command);*/
-	/*printf("Version %d\n", my_rip_pkt->version);*/
-	/*printf("Unused %d\n", my_rip_pkt->unused);*/
 	if (my_command == 1) {
 		/*printf("RIP Request\n");*/
 		send_rip_update(sr);

@@ -597,6 +597,7 @@ int sr_send_packet(struct sr_instance* sr /* borrowed */,
         return -1;
     }
 
+    printf("Creating Packet\n");
     /* Create packet */
     sr_pkt = (c_packet_header *)malloc(len +
             sizeof(c_packet_header));
@@ -606,18 +607,24 @@ int sr_send_packet(struct sr_instance* sr /* borrowed */,
     strncpy(sr_pkt->mInterfaceName,iface,16);
     memcpy(((uint8_t*)sr_pkt) + sizeof(c_packet_header),
             buf,len);
+    printf("Created Paklet\n");
     /* -- log packet -- */
     sr_log_packet(sr,buf,len);
+	printf("Logged Packet\n");
 
     if ( ! sr_ether_addrs_match_interface( sr, buf, iface) ){
         fprintf( stderr, "*** Error: problem with ethernet header, check log\n");
+	printf("Trying Free 1\n");
         free ( sr_pkt );
+	printf("Done Free 1\n");
         return -1;
     }
 
     if( write(sr->sockfd, sr_pkt, total_len) < total_len ){
         fprintf(stderr, "Error writing packet\n");
+	printf("Trying Free 2\n");
         free(sr_pkt);
+	printf("Done Free 2\n");
         return -1;
     }
 	printf("Trying Free 3\n");
