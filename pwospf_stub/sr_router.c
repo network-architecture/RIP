@@ -310,6 +310,10 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
 
     struct sr_if *to_router_interface = sr_find_ip(sr, my_ip_hdr->ip_dst);
     if (to_router_interface) {
+	if(sr_obtain_interface_status(sr, to_router_interface->name)==0){
+		sr_icmp_dest_net_unreachable(sr, my_ip_hdr);
+		return;
+	}
 	/*printf("IP Packet Is For Me\n");*/
 	/*printf("%d\n", my_ip_hdr->ip_p);*/
         if (my_ip_hdr->ip_p == ip_protocol_icmp) {
