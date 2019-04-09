@@ -303,7 +303,37 @@ void *sr_rip_timeout(void *sr_ptr) {
 		current->metric = 16;
 	    }
             current = current->next;
-        }        
+        }
+
+
+	struct sr_if *cur1 = sr->if_list;
+	while(cur1 != NULL){
+		if(sr_obtain_interface_status(sr, cur1->name)==1){
+			struct sr_rt *cur2 = sr->routing_table;
+			int flag = 1;
+			while(cur2 != NULL){
+				struct sr_if *test = sr_get_interface(sr,cur2->interface);
+				if(cur1->ip == test->ip && cur2->metric < 10){
+					flag = 0;
+				}
+				cur2 = cur2->next;
+			}
+			if(flag){
+				printf("ADDING");
+				struct in_addr dest;
+	    			dest.s_addr = cur1->mask&cur1->ip;
+	    			struct in_addr gw;
+				gw.s_addr = 0;
+	    			struct in_addr mask;
+	    			mask.s_addr = cur1->mask;
+				sr_add_rt_entry(sr, dest, gw, mask, 0, cur1->name);
+				send_rip_update(sr);
+			}		
+		}			
+		cur1 = cur1->next;
+	}
+
+
         pthread_mutex_unlock(&(sr->rt_lock));
     }
     return NULL;
@@ -485,32 +515,6 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 			}
 			}
 		}
-	}
-	struct sr_if *cur1 = sr->if_list;
-	while(cur1 != NULL){
-		if(sr_obtain_interface_status(sr, cur1->name)==1){
-			struct sr_rt *cur2 = sr->routing_table;
-			int flag = 1;
-			while(cur2 != NULL){
-				struct sr_if *test = sr_get_interface(sr,cur2->interface);
-				if(cur1->ip == test->ip && cur2->metric < 16){
-					flag = 0;
-				}
-				cur2 = cur2->next;
-			}
-			if(flag){
-				printf("ADDING");
-				struct in_addr dest;
-	    			dest.s_addr = cur1->mask&cur1->ip;
-	    			struct in_addr gw;
-				gw.s_addr = 0;
-	    			struct in_addr mask;
-	    			mask.s_addr = cur1->mask;
-				sr_add_rt_entry(sr, dest, gw, mask, 0, cur1->name);
-				send_rip_update(sr);
-			}		
-		}			
-		cur1 = cur1->next;
 	}
         pthread_mutex_unlock(&(sr->rt_lock));
 }
