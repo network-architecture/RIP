@@ -335,8 +335,6 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t * packet, unsigned int len, co
         my_ip_hdr->ip_sum = 0;
         my_ip_hdr->ip_sum = cksum(my_ip_hdr, my_ip_hdr->ip_hl * 4);
         struct sr_rt *my_match = sr_longest_prefix_match(sr, my_ip_hdr->ip_dst);
-    	printf("GW: %s\n", inet_ntoa(my_match->gw));
-	printf("DEST: %s\n", inet_ntoa(my_match->dest));
         if (my_match) {
             struct sr_if* my_interface = sr_get_interface(sr, my_match->interface);
             sr_get_nexthop(sr, packet, len, my_match->gw.s_addr, my_interface);

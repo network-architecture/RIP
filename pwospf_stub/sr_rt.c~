@@ -313,7 +313,7 @@ void *sr_rip_timeout(void *sr_ptr) {
 			int flag = 1;
 			while(cur2 != NULL){
 				struct sr_if *test = sr_get_interface(sr,cur2->interface);
-				if(cur1->ip == test->ip && metric < 10){
+				if(cur1->ip == test->ip && cur2->metric < 10){
 					flag = 0;
 				}
 				cur2 = cur2->next;

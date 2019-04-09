@@ -30,7 +30,7 @@ struct sr_rt* sr_longest_prefix_match(struct sr_instance* sr, uint32_t my_ip) {
 	uint32_t best_match = 0;
 	struct sr_rt* result = 0;
 	while (my_iter) {
-		if ((my_iter->mask.s_addr & my_iter->dest.s_addr) == (my_iter->mask.s_addr & my_ip) && my_iter->metric<16) {
+		if ((my_iter->mask.s_addr & my_iter->dest.s_addr) == (my_iter->mask.s_addr & my_ip) && my_iter->metric<16 && sr_obtain_interface_status(sr, my_iter->interface)) {
 		   	if ((best_match < my_iter->mask.s_addr) || !result) {
 		   		result = my_iter;
 		   		best_match = my_iter->mask.s_addr;
@@ -41,7 +41,7 @@ struct sr_rt* sr_longest_prefix_match(struct sr_instance* sr, uint32_t my_ip) {
 	if(!result){
 	my_iter = sr->routing_table;
 		while (my_iter) {
-			if (((my_iter->mask.s_addr<<4) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<4) & my_ip) && my_iter->metric<16) {
+			if (((my_iter->mask.s_addr<<4) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<4) & my_ip) && my_iter->metric<16 && sr_obtain_interface_status(sr, my_iter->interface)) {
 			   	if ((best_match < my_iter->mask.s_addr) || !result) {
 			   		result = my_iter;
 			   		best_match = my_iter->mask.s_addr;
@@ -53,7 +53,7 @@ struct sr_rt* sr_longest_prefix_match(struct sr_instance* sr, uint32_t my_ip) {
 	if(!result){
 	my_iter = sr->routing_table;
 		while (my_iter) {
-			if (((my_iter->mask.s_addr<<8) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<8) & my_ip) && my_iter->metric<16) {
+			if (((my_iter->mask.s_addr<<8) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<8) & my_ip) && my_iter->metric<16 && sr_obtain_interface_status(sr, my_iter->interface)) {
 			   	if ((best_match < my_iter->mask.s_addr) || !result) {
 			   		result = my_iter;
 			   		best_match = my_iter->mask.s_addr;
@@ -65,7 +65,7 @@ struct sr_rt* sr_longest_prefix_match(struct sr_instance* sr, uint32_t my_ip) {
 	if(!result){
 	my_iter = sr->routing_table;
 		while (my_iter) {
-			if (((my_iter->mask.s_addr<<12) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<12) & my_ip) && my_iter->metric<16) {
+			if (((my_iter->mask.s_addr<<12) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<12) & my_ip) && my_iter->metric<16 && sr_obtain_interface_status(sr, my_iter->interface)) {
 			   	if ((best_match < my_iter->mask.s_addr) || !result) {
 			   		result = my_iter;
 			   		best_match = my_iter->mask.s_addr;
@@ -300,13 +300,13 @@ void *sr_rip_timeout(void *sr_ptr) {
                 current->metric = 16;
             }
 	    if(sr_obtain_interface_status(sr, current->interface)==0){
-		current->metric = 16;
+		/*current->metric = 16;*/
 	    }
             current = current->next;
         }
 
 
-	struct sr_if *cur1 = sr->if_list;
+	/*struct sr_if *cur1 = sr->if_list;
 	while(cur1 != NULL){
 		if(sr_obtain_interface_status(sr, cur1->name)==1){
 			struct sr_rt *cur2 = sr->routing_table;
@@ -331,7 +331,7 @@ void *sr_rip_timeout(void *sr_ptr) {
 			}		
 		}			
 		cur1 = cur1->next;
-	}
+	}*/
 
 
         pthread_mutex_unlock(&(sr->rt_lock));
