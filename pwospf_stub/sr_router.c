@@ -362,7 +362,6 @@ void sr_handle_rip(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr, sr_rip_pkt_t*
 }
 
 void sr_icmp_echo_reply(struct sr_instance* sr, sr_ip_hdr_t* my_ip_hdr) {
-    sr_print_routing_table(sr);
     printf("ICMP echo reply\n");
     uint16_t iplen = ntohs(my_ip_hdr->ip_len);
     unsigned int len = ethernet_hdr_size + iplen;
@@ -529,13 +528,13 @@ void sr_get_nexthop(struct sr_instance* sr, uint8_t* packet, unsigned int len, u
     assert(sr);
     assert(packet);
     assert(interface);
+    sr_print_routing_table(sr);
+    sr_ethernet_hdr_t* temp_eth_hdr;
+    sr_ip_hdr_t* temp_ip_hdr;
     if(s_addr == 0){
-	sr_ethernet_hdr_t* temp_eth_hdr = (sr_ethernet_hdr_t*)(packet);
-	sr_ip_hdr_t* temp_ip_hdr = (sr_ip_hdr_t*)(temp_eth_hdr+1);
+	temp_eth_hdr = (sr_ethernet_hdr_t*)(packet);
+	temp_ip_hdr = (sr_ip_hdr_t*)(temp_eth_hdr+1);
 	s_addr = temp_ip_hdr->ip_dst;
-	struct in_addr test;
-    	test.s_addr = s_addr;
-    	printf("%s\n", inet_ntoa(test));
     }
     struct sr_arpentry* my_arp = sr_arpcache_lookup(&sr->cache, s_addr);
     if (my_arp) {
@@ -548,7 +547,10 @@ void sr_get_nexthop(struct sr_instance* sr, uint8_t* packet, unsigned int len, u
     }
     else {
 	printf("NOT IN CACHE\n");
+	struct in_addr test;
+    	test.s_addr = s_addr;
+    	printf("%s\n", inet_ntoa(test));
         struct sr_arpreq *request = sr_arpcache_queuereq(&sr->cache, s_addr, packet, len, interface->name);
-        handle_arpreq(sr,request,&sr->cache);\
+        handle_arpreq(sr,request,&sr->cache);
     }
 }

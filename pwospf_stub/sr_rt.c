@@ -30,13 +30,61 @@ struct sr_rt* sr_longest_prefix_match(struct sr_instance* sr, uint32_t my_ip) {
 	uint32_t best_match = 0;
 	struct sr_rt* result = 0;
 	while (my_iter) {
-		if ((my_iter->mask.s_addr & my_iter->dest.s_addr) == (my_iter->mask.s_addr & my_ip)) {
+		if ((my_iter->mask.s_addr & my_iter->dest.s_addr) == (my_iter->mask.s_addr & my_ip) && my_iter->metric<16) {
 		   	if ((best_match < my_iter->mask.s_addr) || !result) {
 		   		result = my_iter;
 		   		best_match = my_iter->mask.s_addr;
 		   	}
 		}
 		my_iter = my_iter->next;
+	}
+	if(!result){
+	my_iter = sr->routing_table;
+		while (my_iter) {
+			if (((my_iter->mask.s_addr<<4) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<4) & my_ip) && my_iter->metric<16) {
+			   	if ((best_match < my_iter->mask.s_addr) || !result) {
+			   		result = my_iter;
+			   		best_match = my_iter->mask.s_addr;
+			   	}
+			}
+			my_iter = my_iter->next;
+		}
+	}
+	if(!result){
+	my_iter = sr->routing_table;
+		while (my_iter) {
+			if (((my_iter->mask.s_addr<<8) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<8) & my_ip) && my_iter->metric<16) {
+			   	if ((best_match < my_iter->mask.s_addr) || !result) {
+			   		result = my_iter;
+			   		best_match = my_iter->mask.s_addr;
+			   	}
+			}
+			my_iter = my_iter->next;
+		}
+	}
+	if(!result){
+	my_iter = sr->routing_table;
+		while (my_iter) {
+			if (((my_iter->mask.s_addr<<12) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<12) & my_ip) && my_iter->metric<16) {
+			   	if ((best_match < my_iter->mask.s_addr) || !result) {
+			   		result = my_iter;
+			   		best_match = my_iter->mask.s_addr;
+			   	}
+			}
+			my_iter = my_iter->next;
+		}
+	}
+	if(!result){
+	my_iter = sr->routing_table;
+		while (my_iter) {
+			if (((my_iter->mask.s_addr<<16) & my_iter->dest.s_addr) == ((my_iter->mask.s_addr<<16) & my_ip) && my_iter->metric<16) {
+			   	if ((best_match < my_iter->mask.s_addr) || !result) {
+			   		result = my_iter;
+			   		best_match = my_iter->mask.s_addr;
+			   	}
+			}
+			my_iter = my_iter->next;
+		}
 	}
 	return result;
 }
@@ -395,6 +443,18 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 	int new_entry;
 	for (i = 0; i < 25; i++) {
 		if (rip_packet->entries[i].address != NULL) {
+			int flag = 0;
+			struct sr_if *cur1 = sr->if_list;
+			while(cur1 != NULL){
+				if((rip_packet->entries[i].mask&rip_packet->entries[i].address)==(cur1->ip&rip_packet->entries[i].mask)){
+					flag = 1;
+				}
+				cur1 = cur1->next;
+			}
+			if(flag){
+				/*continue;*/
+			}
+			else{			
 			current = sr->routing_table;
 			new_entry = 1; 
 			while (current != NULL) {
@@ -409,11 +469,6 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 		            			current->updated_time = now;
 						send_rip_update(sr);
 		        		}
-					/*else if(rip_packet->entries[i].metric + cost_to_neighbor == current->metric) {
-						time_t now;
-        					time(&now);
-		            			current->updated_time = now;
-					}*/
 				}
 				current = current->next;
 			}
@@ -428,6 +483,7 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 					new_entry = 0;
 					send_rip_update(sr);
 			}
+			}
 		}
 	}
 	struct sr_if *cur1 = sr->if_list;
@@ -437,7 +493,7 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
 			int flag = 1;
 			while(cur2 != NULL){
 				struct sr_if *test = sr_get_interface(sr,cur2->interface);
-				if(cur1->ip == test->ip){
+				if(cur1->ip == test->ip && cur2->metric < 16){
 					flag = 0;
 				}
 				cur2 = cur2->next;

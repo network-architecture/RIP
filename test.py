@@ -32,6 +32,7 @@ def test_ping(ip, expect_result):
     if result == expect_result:
         return True
     else:
+        print "P-Error: %s" % ip
         return False
 
 
@@ -50,15 +51,19 @@ def test_traceroute(ip, expect_hop):
             break
         count += 1
         if listx[i].find('* * *') != -1 or listx[i].find('***') != -1:
+            print "Found stars"
             return False
         ip_address = listx[i][listx[i].find('(')+1:listx[i].find(')')]
         if ip_address not in ips:
+            print "Fake IP"
             return False
     if ip_address != ip:
+        print "Incorrect IP"
         return False
     if count == expect_hop:
         return True
     else:
+        print "Hop Count Wrong"
         return False
 
 
